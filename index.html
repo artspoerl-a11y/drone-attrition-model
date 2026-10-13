@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive companion to Expanding the Drone War Attrition Model: Policy Tensor's factory-attrition model extended with depot interdiction.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Drone War Attrition Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: briefing sheet. Sticky parameter rail on the left, readout + four small-multiple charts on the right, method and sources below. */
+:root {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --ink: #17202b;
+  --muted: #5a6472;
+  --line: #d8dce2;
+  --grid: #e8ebef;
+  --accent: #a75a0c;
+  --accent-soft: #fbefe1;
+  --compare: #7d8897;
+  --good: #2c7a4b;
+  --bad: #b3261e;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151c; --surface: #171f29; --ink: #e5e9ef; --muted: #9aa5b3; --line: #2a3441; --grid: #212a35;
+    --accent: #f1a24b; --accent-soft: #2c2215; --compare: #7f8b9b; --good: #5cc28a; --bad: #f07a70;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151c; --surface: #171f29; --ink: #e5e9ef; --muted: #9aa5b3; --line: #2a3441; --grid: #212a35;
+  --accent: #f1a24b; --accent-soft: #2c2215; --compare: #7f8b9b; --good: #5cc28a; --bad: #f07a70;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 24px; }
+
+header { display: grid; gap: 10px; max-width: 78ch; }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.08; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 70ch; }
+.lede strong { color: var(--ink); font-weight: 600; }
+
+.main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+/* Parameter rail */
+.rail { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 18px; position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); }
+@media (max-width: 900px) { .rail { position: static; } }
+.rail h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
+.group { display: grid; gap: 14px; }
+.group-label { font-family: var(--font-data); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.preset { text-align: left; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; cursor: pointer; display: grid; gap: 2px; }
+.preset:hover { border-color: var(--muted); }
+.preset[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.preset b { font-weight: 600; font-size: 14px; }
+.preset span { font-family: var(--font-data); font-size: 11px; color: var(--muted); line-height: 1.35; }
+.hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+.ctl { display: grid; gap: 6px; }
+.ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-size: 13.5px; font-weight: 500; }
+.ctl output { font-family: var(--font-data); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sym { font-family: var(--font-body); font-style: italic; color: var(--muted); font-weight: 400; }
+.sym sub { font-style: normal; font-size: .78em; }
+input[type=range] { width: 100%; accent-color: var(--ink); margin: 0; height: 22px; }
+.interdiction { background: var(--accent-soft); border-radius: 8px; padding: 12px; display: grid; gap: 8px; }
+.interdiction input[type=range] { accent-color: var(--accent); }
+.interdiction .group-label { color: var(--accent); }
+
+/* Readout */
+.content { display: grid; gap: 20px; min-width: 0; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.stat.lead { border-color: var(--accent); }
+.stat .k { font-size: 12.5px; color: var(--muted); }
+.stat .v { font-family: var(--font-data); font-weight: 500; font-size: clamp(22px, 2.6vw, 30px); line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat.lead .v { color: var(--accent); }
+.stat .s { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.pill { display: inline-block; font-family: var(--font-data); font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; vertical-align: 1px; }
+.pill.ok { color: var(--good); }
+.pill.no { color: var(--bad); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12.5px; color: var(--muted); align-items: center; }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 2.5px solid var(--accent); vertical-align: middle; margin-right: 6px; }
+.legend i.cmp { border-top: 2px dashed var(--compare); }
+
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .charts { grid-template-columns: minmax(0, 1fr); } }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 12px 6px; min-width: 0; }
+.chart h3 { font-family: var(--font-display); font-weight: 500; font-size: 15px; margin: 0 4px 4px; display: flex; justify-content: space-between; gap: 8px; }
+.chart h3 .read { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-weight: 400; white-space: nowrap; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart text { font-family: var(--font-data); font-size: 10.5px; fill: var(--muted); }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .axis { stroke: var(--line); stroke-width: 1; }
+.chart .s-main { fill: none; stroke: var(--accent); stroke-width: 2.25; stroke-linejoin: round; }
+.chart .s-cmp { fill: none; stroke: var(--compare); stroke-width: 1.6; stroke-dasharray: 4 3; stroke-linejoin: round; }
+.chart .area { fill: var(--accent); opacity: .08; stroke: none; }
+.chart .marker { stroke: var(--ink); stroke-width: 1; opacity: .35; }
+.chart .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 1.5; }
+.chart .exh { stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2 3; }
+
+/* Method + sources */
+.notes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 900px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.note h2 { font-family: var(--font-display); font-weight: 600; font-size: 19px; margin: 0; }
+.note p, .note li { margin: 0; max-width: 68ch; }
+.note ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.eq { font-family: var(--font-data); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; overflow-x: auto; white-space: pre; line-height: 1.7; }
+.note a { color: var(--accent); text-underline-offset: 2px; }
+.callout { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--ink); }
+footer { font-size: 12px; color: var(--muted); }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Companion model · Expanding the Drone War Attrition Model</p>
+    <h1>Drone War Attrition Simulator</h1>
+    <p class="lede">Policy Tensor's factory-attrition model of Iran's drone campaign, extended with <strong>depot interdiction</strong>: a monthly fraction <span class="sym">d<sub>inv</sub></span> of the stockpile destroyed before it can be launched. Pick a scenario, then move the depot-strike rate to see how much full-rate firing endurance it removes.</p>
+  </header>
+
+  <div class="main">
+    <aside class="rail" aria-label="Model parameters">
+      <h2>Parameters</h2>
+
+      <div class="group">
+        <p class="group-label">Policy Tensor scenarios</p>
+        <div class="presets">
+          <button class="preset" type="button" id="preset-baseline" data-preset="baseline" aria-pressed="true"><b>Baseline</b><span>I₀ 20,000 · d 15% · r 15%</span></button>
+          <button class="preset" type="button" id="preset-extreme" data-preset="extreme" aria-pressed="false"><b>Extreme</b><span>I₀ 10,000 · d 50% · r 0%</span></button>
+        </div>
+        <p class="hint">Scenarios keep your current depot-strike rate. Set it to 0% to see Policy Tensor's original result.</p>
+      </div>
+
+      <div class="interdiction">
+        <p class="group-label">Depot strikes</p>
+        <div class="ctl">
+          <div class="ctl-head"><label for="dinv">Stockpile destroyed per month <span class="sym">d<sub>inv</sub></span></label><output id="dinv-out" for="dinv"></output></div>
+          <input type="range" id="dinv" min="0" max="0.6" step="0.01">
+        </div>
+      </div>
+
+      <div class="group" id="controls"></div>
+    </aside>
+
+    <section class="content" aria-label="Results">
+      <div class="stats">
+        <div class="stat lead">
+          <span class="k">Months of full-rate fire</span>
+          <span class="v" id="st-full"></span>
+          <span class="s" id="st-full-s"></span>
+        </div>
+        <div class="stat">
+          <span class="k">Endurance removed by depot strikes</span>
+          <span class="v" id="st-lost"></span>
+          <span class="s" id="st-lost-s"></span>
+        </div>
+        <div class="stat">
+          <span class="k" id="st-fired-k">Drones fired</span>
+          <span class="v" id="st-fired"></span>
+          <span class="s" id="st-fired-s"></span>
+        </div>
+        <div class="stat">
+          <span class="k">Sustainable firing rate</span>
+          <span class="v" id="st-sus"></span>
+          <span class="s" id="st-sus-s"></span>
+        </div>
+      </div>
+
+      <div class="legend" id="legend">
+        <span><i></i>With depot strikes</span>
+        <span id="legend-cmp"><i class="cmp"></i>Same scenario, no depot strikes</span>
+        <span>Hover or drag across a chart to read a month.</span>
+      </div>
+
+      <div class="charts">
+        <figure class="chart" style="margin:0"><h3>Operational factories <span class="read" id="r-factories"></span></h3><svg id="c-factories" role="img" aria-label="Operational factories by month"></svg></figure>
+        <figure class="chart" style="margin:0"><h3>Drone inventory <span class="read" id="r-inventory"></span></h3><svg id="c-inventory" role="img" aria-label="Drone inventory by month"></svg></figure>
+        <figure class="chart" style="margin:0"><h3>Drones fired per month <span class="read" id="r-firing"></span></h3><svg id="c-firing" role="img" aria-label="Monthly firing rate"></svg></figure>
+        <figure class="chart" style="margin:0"><h3>Cumulative drones fired <span class="read" id="r-cumulative"></span></h3><svg id="c-cumulative" role="img" aria-label="Cumulative drones fired"></svg></figure>
+      </div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <section class="note">
+      <h2>The model</h2>
+      <p>One step is one month. Factories are destroyed and repaired as in Policy Tensor's model. New in this version, depot strikes remove a share of the stockpile each month before launches.</p>
+      <div class="eq">N(t+1)      = N(t) − d_fac·N(t) + r_fac·(N_total − N(t))
+f_actual(t) = min( f, I(t)·(1 − d_inv) + k·N(t) )
+I(t+1)      = I(t)·(1 − d_inv) + k·N(t) − f_actual(t)
+N*          = r_fac / (d_fac + r_fac) · N_total
+f_sustain   = k · N*</div>
+      <p><b>Months of full-rate fire</b> counts consecutive months, from the start, in which the full desired rate <span class="sym">f</span> can be launched.</p>
+      <p class="callout">This measures how long a tempo <em>could</em> be sustained, not how long it <em>will</em> be. In the 2026 campaign launches fell sharply after the first weeks while thousands of drones reportedly remained, whether from degraded launch capacity or deliberate rationing. A rationed stockpile sits in depots longer, so depot strikes take a larger share of it.</p>
+      <p class="hint">Assumptions: d<sub>inv</sub> is constant over time and applies only to inventory carried into the month, not to new production in transit.</p>
+    </section>
+
+    <section class="note">
+      <h2>Where the inputs come from</h2>
+      <p>No public figure exists for Iran's drone inventory before the campaign began on February 28, 2026. Published estimates range from several thousand to well above 10,000. The 20,000 baseline sits at the high end of that range and the 10,000 Extreme scenario sits mid-range.</p>
+      <ul>
+        <li><b>Stockpile.</b> "Several thousand to well above 10,000 drones" (<a href="https://warontherocks.com/2026/03/dont-count-launches-misreading-irans-drone-capacity/" target="_blank" rel="noopener noreferrer">Grieco, War on the Rocks, Mar 16, 2026</a>). "A total force numbering in the thousands" (<a href="https://www.washingtoninstitute.org/policy-analysis/irans-drone-strategy-part-1-wartime-performance-and-adaptations" target="_blank" rel="noopener noreferrer">Nadimi, Washington Institute, May 22, 2026</a>). Israeli officials say Iran likely has more drones than its roughly 2,500 ballistic missiles (<a href="https://san.com/cc/how-long-can-iran-sustain-missile-and-drone-attacks/" target="_blank" rel="noopener noreferrer">SAN</a>).</li>
+        <li><b>Production.</b> Industrial capacity of around 10,000 per month, per the Centre for Information Resilience (<a href="https://www.malaymail.com/news/world/2026/03/22/irans-missile-and-drone-stockpile-what-it-means-for-the-ongoing-war/213392" target="_blank" rel="noopener noreferrer">reported Mar 22, 2026</a>). As a proxy, Russia's Alabuga plant built 5,760 Shahed-type drones from January to September 2024 (<a href="https://www.criticalthreats.org/analysis/russian-offensive-campaign-assessment-december-27-2024" target="_blank" rel="noopener noreferrer">ISW</a>) and about 2,800 per month by 2026 (<a href="https://militarnyi.com/en/news/russia-produces-about-2-800-geran-2-drones-per-month/" target="_blank" rel="noopener noreferrer">Militarnyi</a>).</li>
+        <li><b>Launches.</b> More than 2,000 drones by March 3, per CENTCOM (<a href="https://defensescoop.com/2026/03/04/iranian-attack-drone-launches-decrease-operation-epic-fury/" target="_blank" rel="noopener noreferrer">DefenseScoop</a>); open-source tallies counted 1,522 by March 5 (<a href="https://www.hudson.org/national-security-defense/operation-epic-fury-irans-declining-capabilities-emerging-strategy-can-kasapoglu" target="_blank" rel="noopener noreferrer">Hudson</a>). Roughly 4,400 by the April 7 ceasefire, 85–90% of them in the first two to three weeks (<a href="https://www.washingtoninstitute.org/policy-analysis/irans-drone-strategy-part-1-wartime-performance-and-adaptations" target="_blank" rel="noopener noreferrer">Washington Institute</a>).</li>
+      </ul>
+      <p class="hint">Launch counts set a floor on the stockpile, not a ceiling.</p>
+    </section>
+  </div>
+
+  <footer>Base model: Policy Tensor (2026). Interdiction extension and simulator: companion to “Expanding the Drone War Attrition Model.” Illustrative heuristic, not a forecast.</footer>
+</div>
+
+<script>
+/* ---- SIMULATION ENGINE (monthly steps, matches the paper's Section 2) ---- */
+function simulate(p) {
+  let N = p.N, I = p.I0, cum = 0, full = 0, still = true;
+  const rows = [];
+  let lastFired = 0;
+  for (let m = 0; m <= p.H; m++) {
+    // State at the start of month m; "fired" is what was launched during the previous month
+    rows.push({ m, N: Math.max(0, N), I: Math.max(0, I), fired: lastFired, cum });
+    if (m === p.H) break;
+    const nextN = Math.max(0, Math.min(p.N, N - p.d * N + p.r * (p.N - N)));
+    const avail = I * (1 - p.dinv) + p.k * N;
+    const fired = Math.max(0, Math.min(p.f, avail));
+    const nextI = Math.max(0, avail - fired);
+    if (still && p.f > 0 && fired >= p.f - 0.5) full++; else still = false;
+    cum += fired;
+    lastFired = fired;
+    N = nextN; I = nextI;
+  }
+  return { rows, full, total: cum };
+}
+/* ---- END SIMULATION ENGINE ---- */
+
+const PRESETS = {
+  baseline: { I0: 20000, N: 50, k: 100, d: 0.15, r: 0.15, f: 3000 },
+  extreme:  { I0: 10000, N: 50, k: 100, d: 0.50, r: 0.00, f: 3000 }
+};
+const state = Object.assign({}, PRESETS.baseline, { dinv: 0.10, H: 72 });
+
+const fmt = v => Math.round(v).toLocaleString('en-US');
+const pct = v => Math.round(v * 100) + '%';
+const CONTROLS = [
+  { id: 'I0', label: 'Initial drone inventory', sym: 'I<sub>0</sub>', min: 0, max: 50000, step: 1000, f: fmt },
+  { id: 'N', label: 'Factory slots', sym: 'N<sub>total</sub>', min: 10, max: 200, step: 10, f: fmt },
+  { id: 'k', label: 'Drones per factory per month', sym: 'k', min: 10, max: 500, step: 10, f: fmt },
+  { id: 'd', label: 'Factories destroyed per month', sym: 'd<sub>fac</sub>', min: 0, max: 1, step: 0.01, f: pct },
+  { id: 'r', label: 'Destroyed factories repaired per month', sym: 'r<sub>fac</sub>', min: 0, max: 1, step: 0.01, f: pct },
+  { id: 'f', label: 'Desired firing rate (per month)', sym: 'f', min: 0, max: 10000, step: 250, f: fmt },
+  { id: 'H', label: 'Simulation horizon (months)', sym: '', min: 12, max: 120, step: 6, f: v => v }
+];
+
+const host = document.getElementById('controls');
+const label = document.createElement('p');
+label.className = 'group-label'; label.textContent = 'Factory model';
+host.appendChild(label);
+CONTROLS.forEach(c => {
+  const wrap = document.createElement('div'); wrap.className = 'ctl';
+  wrap.innerHTML = `<div class="ctl-head"><label for="in-${c.id}">${c.label}${c.sym ? ` <span class="sym">${c.sym}</span>` : ''}</label><output id="out-${c.id}" for="in-${c.id}"></output></div>
+    <input type="range" id="in-${c.id}" min="${c.min}" max="${c.max}" step="${c.step}">`;
+  host.appendChild(wrap);
+  const input = wrap.querySelector('input');
+  input.addEventListener('input', () => { state[c.id] = parseFloat(input.value); markPreset(); render(); });
+});
+const dinvIn = document.getElementById('dinv');
+dinvIn.addEventListener('input', () => { state.dinv = parseFloat(dinvIn.value); render(); });
+
+document.querySelectorAll('.preset').forEach(b => b.addEventListener('click', () => {
+  Object.assign(state, PRESETS[b.dataset.preset]); markPreset(); render();
+}));
+function markPreset() {
+  document.querySelectorAll('.preset').forEach(b => {
+    const p = PRESETS[b.dataset.preset];
+    const on = Object.keys(p).every(k => Math.abs(state[k] - p[k]) < 1e-9);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+/* ---- Charts ---- */
+const W = 520, Hh = 230, M = { l: 52, r: 14, t: 10, b: 26 };
+// Round axis: pick a 1/2/5 step so four or fewer gridlines land on clean values
+function niceAxis(v) {
+  if (v <= 0) return { max: 1, step: 0.25, n: 4 };
+  const raw = v / 4;
+  const e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e;
+  const n = Math.ceil(v / step);
+  return { max: n * step, step, n };
+}
+function tickFmt(v) { return v >= 1000 ? (v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 }) + 'k' : String(Math.round(v * 10) / 10); }
+const charts = {};
+function drawChart(key, main, cmp, H, opts) {
+  const svg = document.getElementById('c-' + key);
+  svg.setAttribute('viewBox', `0 0 ${W} ${Hh}`);
+  const all = main.concat(cmp || []);
+  const ax = niceAxis(Math.max(...all, opts.floor || 0));
+  const ymax = ax.max;
+  const x = m => M.l + (m / H) * (W - M.l - M.r);
+  const y = v => Hh - M.b - (v / ymax) * (Hh - M.t - M.b);
+  let g = '';
+  for (let i = 0; i <= ax.n; i++) {
+    const v = ax.step * i, yy = y(v);
+    g += `<line class="gridline" x1="${M.l}" x2="${W - M.r}" y1="${yy}" y2="${yy}"/>`;
+    g += `<text x="${M.l - 8}" y="${yy + 3.5}" text-anchor="end">${tickFmt(v)}</text>`;
+  }
+  const step = H <= 36 ? 6 : H <= 72 ? 12 : 24;
+  for (let m = 0; m <= H; m += step) g += `<text x="${x(m)}" y="${Hh - 8}" text-anchor="middle">${m}</text>`;
+  g += `<line class="axis" x1="${M.l}" x2="${W - M.r}" y1="${y(0)}" y2="${y(0)}"/>`;
+  const path = arr => arr.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join('');
+  const area = path(main) + `L${x(H)} ${y(0)}L${x(0)} ${y(0)}Z`;
+  if (opts.exhaust != null && opts.exhaust < H) {
+    g += `<line class="exh" x1="${x(opts.exhaust)}" x2="${x(opts.exhaust)}" y1="${M.t}" y2="${y(0)}"/>`;
+  }
+  g += `<path class="area" d="${area}"/>`;
+  if (cmp) g += `<path class="s-cmp" d="${path(cmp)}"/>`;
+  g += `<path class="s-main" d="${path(main)}"/>`;
+  g += `<line class="marker" id="mk-${key}" x1="0" x2="0" y1="${M.t}" y2="${y(0)}" visibility="hidden"/>`;
+  g += `<circle class="dot" id="dt-${key}" r="3.5" cx="0" cy="0" visibility="hidden"/>`;
+  g += `<rect x="${M.l}" y="${M.t}" width="${W - M.l - M.r}" height="${Hh - M.t - M.b}" fill="transparent" data-hit="${key}"/>`;
+  svg.innerHTML = g;
+  charts[key] = { x, y, main, cmp, H, fmt: opts.fmt };
+}
+
+const READ = { factories: 'r-factories', inventory: 'r-inventory', firing: 'r-firing', cumulative: 'r-cumulative' };
+function showMonth(m) {
+  Object.keys(charts).forEach(key => {
+    const c = charts[key]; const mm = Math.max(0, Math.min(c.H, m));
+    const mk = document.getElementById('mk-' + key), dt = document.getElementById('dt-' + key);
+    const out = document.getElementById(READ[key]);
+    if (m == null) { mk.setAttribute('visibility', 'hidden'); dt.setAttribute('visibility', 'hidden'); out.textContent = ''; return; }
+    const xx = c.x(mm);
+    mk.setAttribute('x1', xx); mk.setAttribute('x2', xx); mk.setAttribute('visibility', 'visible');
+    dt.setAttribute('cx', xx); dt.setAttribute('cy', c.y(c.main[mm])); dt.setAttribute('visibility', 'visible');
+    out.textContent = `Month ${mm}: ${c.fmt(c.main[mm])}` + (c.cmp ? ` (vs ${c.fmt(c.cmp[mm])})` : '');
+  });
+}
+document.querySelectorAll('.chart svg').forEach(svg => {
+  const handler = ev => {
+    const key = svg.id.slice(2); const c = charts[key]; if (!c) return;
+    const pt = svg.getBoundingClientRect();
+    const px = ((ev.clientX - pt.left) / pt.width) * W;
+    const m = Math.round(((px - M.l) / (W - M.l - M.r)) * c.H);
+    showMonth(Math.max(0, Math.min(c.H, m)));
+  };
+  svg.addEventListener('pointermove', handler);
+  svg.addEventListener('pointerdown', handler);
+  svg.addEventListener('pointerleave', () => showMonth(null));
+});
+
+/* ---- Render ---- */
+function render() {
+  CONTROLS.forEach(c => {
+    document.getElementById('in-' + c.id).value = state[c.id];
+    document.getElementById('out-' + c.id).textContent = c.f(state[c.id]);
+  });
+  dinvIn.value = state.dinv;
+  document.getElementById('dinv-out').textContent = pct(state.dinv);
+
+  const p = { I0: state.I0, N: state.N, k: state.k, d: state.d, r: state.r, f: state.f, dinv: state.dinv, H: state.H };
+  const a = simulate(p), b = simulate(Object.assign({}, p, { dinv: 0 }));
+  const hasCmp = state.dinv > 0;
+  const H = state.H;
+  const monthsTxt = n => state.f <= 0 ? '—' : n >= H ? `${H}+` : String(n);
+
+  document.getElementById('st-full').textContent = monthsTxt(a.full);
+  document.getElementById('st-full-s').textContent = hasCmp
+    ? `vs ${monthsTxt(b.full)} with no depot strikes`
+    : 'No depot strikes. Raise d_inv to compare.';
+
+  let lost = '—', lostS = 'Raise the depot-strike rate to measure this.';
+  if (hasCmp && state.f > 0) {
+    if (b.full >= H) { lost = `≥${b.full - a.full} mo`; lostS = 'Without depot strikes the run outlasts the horizon. Extend it for an exact figure.'; }
+    else if (b.full > 0) { lost = Math.round((1 - a.full / b.full) * 100) + '%'; lostS = `${b.full - a.full} fewer months at full rate`; }
+  }
+  document.getElementById('st-lost').textContent = lost;
+  document.getElementById('st-lost-s').textContent = lostS;
+
+  document.getElementById('st-fired-k').textContent = `Drones fired in ${H} months`;
+  document.getElementById('st-fired').textContent = fmt(a.total);
+  document.getElementById('st-fired-s').textContent = hasCmp ? `vs ${fmt(b.total)} with no depot strikes` : ' ';
+
+  const den = state.d + state.r;
+  const Nstar = den > 0 ? state.r / den * state.N : state.N;
+  const sus = state.k * Nstar;
+  document.getElementById('st-sus').textContent = fmt(sus) + '/mo';
+  document.getElementById('st-sus-s').innerHTML = `${fmt(Nstar)} factories at steady state · ` +
+    (sus >= state.f ? `<span class="pill ok">covers ${fmt(state.f)}/mo</span>` : `<span class="pill no">short of ${fmt(state.f)}/mo</span>`);
+
+  document.getElementById('legend-cmp').hidden = !hasCmp;
+
+  const col = (r, k) => r.rows.map(x => x[k]);
+  const exhaust = state.f > 0 && a.full < H ? a.full : null;
+  drawChart('factories', col(a, "N"), null, H, { fmt: v => (Math.round(v * 10) / 10).toLocaleString('en-US'), floor: 1 });
+  drawChart('inventory', col(a, 'I'), hasCmp ? col(b, 'I') : null, H, { fmt, exhaust });
+  drawChart('firing', col(a, 'fired'), hasCmp ? col(b, 'fired') : null, H, { fmt, exhaust, floor: state.f });
+  drawChart('cumulative', col(a, 'cum'), hasCmp ? col(b, 'cum') : null, H, { fmt });
+}
+markPreset();
+render();
+</script>
+</body>
+</html>
